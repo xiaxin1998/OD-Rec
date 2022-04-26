@@ -49,8 +49,8 @@ def main():
         n_node = 36968 + 4
     else:
         n_node = 309
-    train_data = Data(train_data, shuffle=True, n_node=n_node)
-    test_data = Data(test_data, shuffle=False, n_node=n_node)
+    train_data = Data(train_data, train_data, shuffle=True, n_node=n_node, train=1)
+    test_data = Data(test_data, train_data, shuffle=False, n_node=n_node, train=0)
     model = trans_to_cuda(SAS(n_node, opt))
 
     top_K = [5, 10, 20]
@@ -63,7 +63,7 @@ def main():
         print('epoch: ', epoch)
         metrics, total_loss = train_test(model, train_data, test_data, epoch, opt)
 
-        torch.save(model.state_dict(), '../sas_teacher_rr_nn.pkl')
+        # torch.save(model.state_dict(), '../sas_teacher_rr_nn.pkl')
 
         for K in top_K:
             metrics['hit%d' % K] = np.mean(metrics['hit%d' % K]) * 100
