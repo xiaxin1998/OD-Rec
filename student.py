@@ -8,6 +8,7 @@ import torch.nn.functional as fn
 from torch.nn.init import normal_
 from numba import jit
 import pickle
+import heapq
 
 def trans_to_cuda(variable):
     if torch.cuda.is_available():
@@ -715,37 +716,20 @@ def forward(model, i, data, teacher):
     return tar, loss, con_loss
 
 
+
 @jit(nopython=True)
 def find_k_largest(K, candidates):
     n_candidates = []
-    for iid,score in enumerate(candidates[:K]):
-        n_candidates.append((iid, score))
-    n_candidates.sort(key=lambda d: d[1], reverse=True)
-    k_largest_scores = [item[1] for item in n_candidates]
-    ids = [item[0] for item in n_candidates]
-    # find the N biggest scores
-    for iid,score in enumerate(candidates):
-        ind = K
-        l = 0
-        r = K - 1
-        if k_largest_scores[r] < score:
-            while r >= l:
-                mid = int((r - l) / 2) + l
-                if k_largest_scores[mid] >= score:
-                    l = mid + 1
-                elif k_largest_scores[mid] < score:
-                    r = mid - 1
-                if r < l:
-                    ind = r
-                    break
-        # move the items backwards
-        if ind < K - 2:
-            k_largest_scores[ind + 2:] = k_largest_scores[ind + 1:-1]
-            ids[ind + 2:] = ids[ind + 1:-1]
-        if ind < K - 1:
-            k_largest_scores[ind + 1] = score
-            ids[ind + 1] = iid
-    return ids#,k_largest_scores
+    for iid, score in enumerate(candidates[:K]):
+        n_candidates.append((score, iid))
+    heapq.heapify(n_candidates)
+    for iid, score in enumerate(candidates[K:]):
+        if score > n_candidates[0][0]:
+            heapq.heapreplace(n_candidates, (score, iid + K))
+    n_candidates.sort(key=lambda d: d[0], reverse=True)
+    ids = [item[1] for item in n_candidates]
+    # k_largest_scores = [item[0] for item in n_candidates]
+    return ids#, k_largest_scores
 
 
 def train_test(model, train_data, test_data, epoch, opt, teacher):
